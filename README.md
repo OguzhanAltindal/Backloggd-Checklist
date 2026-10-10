@@ -1,101 +1,127 @@
 # Backloggd Checklist
 
-A small Windows app that turns your Steam library into a checklist for logging games on
-[Backloggd](https://backloggd.com). Double-click a game and its Backloggd page opens in your
-browser. Log it there, tick it off, move on to the next one.
+**Turn your Steam library into a checklist for logging games on [Backloggd](https://backloggd.com).**
+
+A small Windows app: it lists every game you own on Steam, shows what you've played and when, and
+opens each game's Backloggd page with one click so you can log it. Tick it off, move on to the next.
 
 ## ⬇️ Download
 
-1. Go to the **[latest release](../../releases/latest)**.
-2. Under **Assets**, click **`Backloggd-Checklist.exe`** to download it.
-3. Double-click the downloaded file. That's it: nothing to install, no Python needed.
+1. Open the **[latest release](../../releases/latest)**.
+2. Under **Assets**, download **`Backloggd-Checklist.exe`**.
+3. Double-click it. Nothing to install, no Python needed.
 
-> **Windows may show “Windows protected your PC”** the first time. This happens with apps from
-> small developers that don't pay for a code-signing certificate. Click **More info → Run anyway**.
+Requires **Windows 10 or 11 (64-bit)**.
 
-On first launch a short setup (about 2 minutes) walks you through everything. You only need
-your Steam account.
+> **“Windows protected your PC”?** This shows up for apps from small developers without a paid
+> code-signing certificate. Click **More info → Run anyway**.
 
-## Is my account safe?
+## ✨ Features
+
+- **Your whole Steam library** in two groups: **Played** and **Not played yet**. It opens with your
+  most recently played games first.
+- **Grid or list view**, sorting by name, playtime or last played, search, and filters.
+- **Playtime on hover:** rest the mouse on a cover to see playtime, when you last played and your
+  achievement progress.
+- **One click to Backloggd:** “Add to Backloggd” opens the game's page in your browser, where you log it.
+- **Checklist:** mark games as added and hide them to keep the list short.
+- **Game pages** with your **Steam achievements**: what you unlocked, when, and how rare each one is.
+- **Your look:** light or dark theme (or same as Windows), 6 colors, text size from 50% to 200%.
+- **Easy setup** written for non-technical users, with copy buttons and plain-language checks.
+- **Keyboard friendly:** arrows, Enter, Space, Alt+←/→ and more. Works in small and large windows.
+
+## 🔒 Is my account safe?
 
 - **No passwords, ever.** The app never asks for your Steam, Backloggd or any other login.
-- **Official sources only.** It talks only to Steam's official Web API (`api.steampowered.com`),
-  Steam's public image server for game pictures, and optionally IGDB's official API
-  (`api.igdb.com` / `id.twitch.tv`). No scraping, no unofficial endpoints, no browser automation.
-- **Read-only.** It only *reads* your Steam game list. Nothing is changed on Steam, and
-  **nothing is ever sent to Backloggd**: you add each game yourself.
-- **Your keys stay on your computer**, encrypted with your Windows account. The app never shows
-  them in error messages.
+- **Official sources only:** Steam's Web API (`api.steampowered.com`), Steam's public image server,
+  and optionally IGDB's API (`api.igdb.com`). No scraping, no unofficial endpoints, no browser automation.
+- **Read-only.** It only *reads* your Steam game list. Nothing is changed on Steam, and **nothing is
+  ever sent to Backloggd**: you add each game yourself.
+- **Your keys stay on your computer**, encrypted with your Windows account, and never appear in
+  error messages.
 
-Treat your Steam API key like a password: never share it or paste it into a website. If you
-think it leaked, revoke it at <https://steamcommunity.com/dev/apikey>.
+Treat your Steam API key like a password. If you think it leaked, revoke it at
+<https://steamcommunity.com/dev/apikey>.
 
-## First-time setup (inside the app)
+## 🚀 Getting started
 
-The setup opens on first launch and any time from **API keys** at the top right. It shows one step per screen. Every link opens the official page, and anything you have
-to type into a web page (like `localhost`) has a **Copy** button.
+On first launch a short setup (about 2 minutes) walks you through it, one step per screen. You can
+open it again any time from **API keys** at the top right.
 
-1. **Get your Steam key:** open Steam's key page, paste `localhost` into the *Domain Name* box,
-   click *Register* and paste the key back into the app. (Steam only gives keys to accounts that
-   have spent at least $5 in the Steam store.)
-2. **Your Steam profile:** paste your profile's address and set *Game details* to *Public*.
-   The app checks it right away and tells you how many games it found.
-3. **Optional, exact Backloggd links:** with a free Twitch developer app (IGDB's official
-   access), each game opens its exact Backloggd page. Skip it and each game opens a Backloggd
-   search instead. You can turn it on later from **API keys**.
+1. **Steam key:** open Steam's key page, paste `localhost` into *Domain Name* (there's a Copy
+   button), click *Register* and paste the key into the app.
+   Steam only gives keys to accounts that have spent at least $5 in the Steam store.
+2. **Steam profile:** paste your profile's address and set *Game details* to *Public* in Steam's
+   privacy settings. The app checks it and tells you how many games it found.
+3. **Optional, exact links:** with a free Twitch developer app (IGDB's official access), each game
+   opens its exact Backloggd page. Skip it and each game opens a Backloggd search instead.
 
-## Using it
+Then click **Sync library**.
 
-1. Click **Sync library**. Your games appear in two groups: **Played** and **Not played yet**
-   (games with no playtime, including ones you just bought). Click a group's title to collapse or
-   expand it; the app remembers your choice.
-2. The app always opens with your **most recently played** games first. Choose **Grid** (covers)
-   or **List** (rows with playtime and last played), and sort by name,
-   playtime or last played. Click the active sort again to flip it. For Playtime and Last played,
-   **↓** means highest / newest first and **↑** lowest / oldest first. For Name, **↓** means A to Z
-   and **↑** Z to A.
-3. Rest the mouse on a cover: the lower half fades out and shows your playtime, when you last
-   played, and your achievement progress (once you've opened that game's page).
-4. Sign in to backloggd.com in your browser as usual, then click **Add to Backloggd** on a game.
-   Its Backloggd page opens in your browser, where you add it yourself.
-5. Tick the round check mark on a game to mark it as added. **Hide added** keeps the list short.
-6. Click a game to open its page: a bigger picture, quick actions and your **Steam achievements**.
-7. Everything opens inside the main window. Use the **← →** buttons at the top (or **Alt+← / Alt+→**,
-   or your mouse's side buttons) to go back and forward; the library keeps its scroll position,
-   search and filters.
-8. **Settings** (top right) changes the theme (same as Windows, light or dark), the color (pink, green,
-   yellow, blue, red or magenta) and the text size (from half size to double size). Your Steam and IGDB
-   keys are under **API keys**, next to it.
-9. Bought new games? Click **Sync library** again. Your marks are kept.
+## 📖 Using it
 
-Keyboard: **Tab** moves between controls, arrow keys move between games, **Enter** opens a game,
-**Space** marks it as added, **A** opens it on Backloggd, **Ctrl+F** searches, **F5** syncs and
-**Esc** goes back. The **Help** page in the app lists all of this.
+| To… | Do this |
+|---|---|
+| Log a game on Backloggd | Sign in to backloggd.com in your browser, then click **Add to Backloggd** on the game |
+| Mark a game as done | Click the round check mark (or press **Space**) |
+| See achievements | Click the game |
+| Change the order | Click **Name**, **Playtime** or **Last played**; click again to flip (↑ / ↓) |
+| Go back / forward | **←  →** at the top, **Alt+← / Alt+→**, or the mouse side buttons |
+| Fix a “Page not found” | Use **Search on Backloggd** on the game's page or in the right-click menu |
+| Add newly bought games | Click **Sync library** again; your check marks are kept |
+| Change theme, color, text size | **Settings** at the top right |
 
-## Where data is stored
+The **Help** page in the app lists every keyboard shortcut.
 
-Everything lives in `%APPDATA%\BackloggdChecklist`: encrypted settings (`config.dat`), your
-library (`library.json`), your added marks (`added.json`), IGDB matches (`igdb_cache.json`), your
-view, sort and theme choices (`ui.json`), downloaded game pictures (`images`) and achievements
-(`achievements`). Delete that folder to reset the app completely.
+## ❓ Troubleshooting
+
+- **“Steam didn't share your game list”:** set *Game details* to *Public* in your Steam privacy settings.
+- **“Steam didn't accept this API key”:** copy the key again from Steam's key page; it's 32 letters and numbers.
+- **The app doesn't open:** check whether Windows SmartScreen or your antivirus blocked it
+  (Windows Security → *Protection history*), and that the download is complete (about 19 MB).
+- **Start over:** delete the folder `%APPDATA%\BackloggdChecklist`. It holds the encrypted
+  settings, your library, check marks, downloaded pictures and achievements.
 
 ---
 
-## For developers
+## 🛠️ For developers
 
-**Run from source:** install Python 3.9+, run `pip install pillow` (for the game pictures), and
-double-click `app.pyw`. Keep it next to `checklist_core.py`, `theme.py` and `widgets.py`. The app uses the Segoe UI Variable font and Segoe Fluent Icons that come with Windows 10/11.
-Without Pillow the app still works, with placeholders instead of pictures.
+Written in Python with tkinter and Pillow, packaged as a single exe with PyInstaller.
 
-**Build the exe:** run this in PowerShell from the repository folder:
+**Run from source** (Python 3.9+):
+
+```bash
+pip install pillow
+```
+```bash
+python app.pyw
+```
+
+Without Pillow the app still runs, with placeholders instead of pictures. It uses the Segoe UI
+Variable font and Segoe Fluent Icons that come with Windows 10/11.
+
+**Build the exe** (PowerShell, from the repository folder):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-It installs PyInstaller into a private `.build-venv` folder (your global Python is untouched),
-regenerates `icon.ico`, and writes `dist\Backloggd-Checklist.exe`.
+This installs PyInstaller and Pillow into a private `.build-venv` folder and writes
+`dist\Backloggd-Checklist.exe`.
 
-**Publish a new version:** on GitHub, go to *Releases → Draft a new release*, create a tag like
-`v1.1.0`, attach `dist\Backloggd-Checklist.exe` and click *Publish release*. The download link
-above always points to the newest release.
+| File | What it does |
+|---|---|
+| `app.pyw` | Main window, pages (library, game, setup, settings, help) and navigation |
+| `widgets.py` | Game grid/list, buttons, banners, image loading and animations |
+| `theme.py` | Colors, fonts, icons and light/dark styles |
+| `checklist_core.py` | Steam and IGDB requests, encrypted settings, local storage |
+| `make_icon.py` | Generates `icon.ico` |
+| `build.ps1` | Builds the exe |
+
+**Publishing a version:** *Releases → Draft a new release*, create a tag such as `v1.2.0`, attach
+`dist\Backloggd-Checklist.exe` and publish. The download link above always points to the newest release.
+
+## Disclaimer
+
+This is an independent fan project. It is not affiliated with or endorsed by Backloggd, Valve/Steam,
+IGDB or Twitch. Game names and artwork belong to their respective owners.
