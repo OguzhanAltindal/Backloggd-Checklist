@@ -1,56 +1,39 @@
 # Backloggd Checklist
 
-A small desktop app that turns your Steam library into a checklist for logging games on
-[Backloggd](https://backloggd.com).
+A small Windows app that turns your Steam library into a checklist for logging games on
+[Backloggd](https://backloggd.com). Double-click a game and its Backloggd page opens in your
+browser. Log it there, tick it off, move on to the next one.
 
-It reads your Steam library through the **official Steam Web API**, matches each game to its
-Backloggd page through the **official IGDB API** (Backloggd's own game database, optional), and shows
-everything in a list. You open each game's Backloggd page from the app and log it yourself.
+## ⬇️ Download
+
+1. Go to the **[latest release](../../releases/latest)**.
+2. Under **Assets**, click **`Backloggd-Checklist.exe`** to download it.
+3. Double-click the downloaded file. That's it: nothing to install, no Python needed.
+
+> **Windows may show “Windows protected your PC”** the first time. This happens with apps from
+> small developers that don't pay for a code-signing certificate. Click **More info → Run anyway**.
+
+On first launch a short setup (about 2 minutes) walks you through everything. You only need
+your Steam account.
 
 ## Is my account safe?
 
 - **No passwords, ever.** The app never asks for your Steam, Backloggd or any other login.
-- **Official APIs only.** It talks only to `api.steampowered.com` (Steam) and `api.igdb.com` /
-  `id.twitch.tv` (IGDB). No scraping, no unofficial endpoints, no browser automation.
-- **Read-only.** It only *reads* your Steam library. Nothing is written to Steam, and
-  **nothing is ever sent to Backloggd**: you add games yourself.
-- **The IGDB token is an app token**, not tied to your Twitch account. It only reads public game data.
-- **Your keys are encrypted** with your Windows account (Windows DPAPI) and stored only on this
-  computer. The app never shows them in error messages.
+- **Official APIs only.** It talks only to Steam's official Web API (`api.steampowered.com`) and,
+  optionally, IGDB's official API (`api.igdb.com` / `id.twitch.tv`). No scraping, no unofficial
+  endpoints, no browser automation.
+- **Read-only.** It only *reads* your Steam game list. Nothing is changed on Steam, and
+  **nothing is ever sent to Backloggd**: you add each game yourself.
+- **Your keys stay on your computer**, encrypted with your Windows account. The app never shows
+  them in error messages.
 
 Treat your Steam API key like a password: never share it or paste it into a website. If you
 think it leaked, revoke it at <https://steamcommunity.com/dev/apikey>.
 
-## Start the app
-
-**Easiest:** double-click **`dist\Backloggd Checklist.exe`**. It's a single file that doesn't need
-Python, so you can move it anywhere (Desktop, another PC…).
-
-> Windows may show “Windows protected your PC” the first time, because the exe isn't signed
-> with a paid certificate. Click **More info → Run anyway**. You built it yourself from the
-> code in this folder.
-
-**From source:** install Python 3.9+ from <https://www.python.org/downloads/> and double-click
-**`app.pyw`** (keep it next to `checklist_core.py`).
-
-On first launch the setup wizard opens.
-
-## Rebuild the exe
-
-After changing the code, run this in PowerShell from this folder:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\build.ps1
-```
-
-It installs PyInstaller into a private `.build-venv` folder (your global Python is untouched),
-regenerates `icon.ico`, and writes a new `dist\Backloggd Checklist.exe`.
-
 ## First-time setup (inside the app)
 
-On first launch a short setup wizard walks you through everything, one step per screen. You
-only need your Steam account. Every link opens the official page, and anything you have to type
-into a web page (like `localhost`) has a **Copy** button.
+The setup shows one step per screen. Every link opens the official page, and anything you have
+to type into a web page (like `localhost`) has a **Copy** button.
 
 1. **Get your Steam key:** open Steam's key page, paste `localhost` into the *Domain Name* box,
    click *Register* and paste the key back into the app. (Steam only gives keys to accounts that
@@ -71,13 +54,34 @@ into a web page (like `localhost`) has a **Copy** button.
 3. **Double-click** a game (or select it and click **Open on Backloggd**). Its Backloggd page
    opens in your browser: log it there.
 4. Press **Space** (or click the ✓ column) to mark it as added. **Hide added** keeps the list short.
-5. Games with a **search** link open a Backloggd search: click the right result.
+5. Games with a **search** link open a Backloggd search: click the right result. If a page says
+   “Page not found”, right-click the game and choose **Search on Backloggd**.
 6. Bought new games? Click **Sync Steam library** again. Your marks are kept.
 
-Right-click a game for more options. The **How to use** button shows these steps any time.
+The **How to use** button in the app shows these steps any time.
 
 ## Where data is stored
 
 Everything lives in `%APPDATA%\BackloggdChecklist`: encrypted settings (`config.dat`), your
-library (`library.json`), your added marks (`added.json`) and IGDB matches (`igdb_cache.json`).
-Delete that folder to reset the app completely.
+library (`library.json`), your added marks (`added.json`), IGDB matches (`igdb_cache.json`) and
+which groups you collapsed (`ui.json`). Delete that folder to reset the app completely.
+
+---
+
+## For developers
+
+**Run from source:** install Python 3.9+ and double-click `app.pyw` (keep it next to
+`checklist_core.py`). Only the standard library is used.
+
+**Build the exe:** run this in PowerShell from the repository folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1
+```
+
+It installs PyInstaller into a private `.build-venv` folder (your global Python is untouched),
+regenerates `icon.ico`, and writes `dist\Backloggd-Checklist.exe`.
+
+**Publish a new version:** on GitHub, go to *Releases → Draft a new release*, create a tag like
+`v1.1.0`, attach `dist\Backloggd-Checklist.exe` and click *Publish release*. The download link
+above always points to the newest release.
