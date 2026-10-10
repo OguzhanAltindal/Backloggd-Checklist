@@ -1,12 +1,14 @@
 """Data layer for Backloggd Checklist: settings, Steam + IGDB sync, local storage.
 
-Only official APIs are used:
-  - Steam Web API (IPlayerService/GetOwnedGames), with the user's own API key
+Only official sources are used:
+  - Steam Web API (owned games, achievements), with the user's own API key
+  - Steam's public image CDN, for game covers and achievement icons
   - IGDB API (Twitch client-credentials app token), for matching games to Backloggd
 Nothing is ever sent to Backloggd, and no account passwords are ever requested.
 """
 
 import base64
+import hashlib
 import json
 import os
 import re
@@ -22,6 +24,13 @@ CONFIG_PATH = APP_DIR / "config.dat"
 CACHE_PATH = APP_DIR / "igdb_cache.json"
 LIBRARY_PATH = APP_DIR / "library.json"
 DONE_PATH = APP_DIR / "added.json"
+IMAGE_DIR = APP_DIR / "images"
+ACH_DIR = APP_DIR / "achievements"
+
+# Same files on both hosts; the first is Steam's current store asset path
+STEAM_CDN = ("https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps",
+             "https://cdn.cloudflare.steamstatic.com/steam/apps")
+STEAM_ART = {"cover": "library_600x900.jpg", "header": "header.jpg"}
 
 STEAM_API = "https://api.steampowered.com"
 IGDB_API = "https://api.igdb.com/v4"
@@ -120,7 +129,7 @@ def _read_json(path, default):
 
 
 def _write_json(path, data):
-    APP_DIR.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
     tmp.replace(path)
@@ -366,3 +375,119 @@ def sync_library(cfg, progress=None):
     }
     _write_json(LIBRARY_PATH, library)
     return library
+
+
+# ---------------------------------------------------------------- images
+
+def _http_bytes(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "backloggd-checklist/3.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return resp.read()
+
+
+def cached_image(urls, name):
+    """Return a local path for the first URL that exists, downloading it once.
+
+    Returns None if none of the URLs has an image (remembered, so it isn't retried)
+    or if there is no connection right now (not remembered).
+    """
+    path = IMAGE_DIR / f"{name}.img"
+    missing = IMAGE_DIR / f"{name}.missing"
+    if path.exists():
+        return path
+    if missing.exists():
+        return None
+    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    for url in urls:
+        try:
+            data = _http_bytes(url)
+        except urllib.error.HTTPError as e:
+            if e.code in (403, 404):
+                continue
+            return None
+        except (urllib.error.URLError, OSError):
+            return None
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(path)
+        return path
+    missing.touch()
+    return None
+
+
+def steam_art(appid, kind):
+    """Local path of a game's cover ("cover", 600x900) or banner ("header", 460x215)."""
+    file = STEAM_ART[kind]
+    return cached_image([f"{base}/{appid}/{file}" for base in STEAM_CDN], f"{appid}_{kind}")
+
+
+def url_image(url):
+    """Local path of an image from a full URL (achievement icons)."""
+    return cached_image([url], "u_" + hashlib.sha1(url.encode("utf-8")).hexdigest()[:20])
+
+
+# ---------------------------------------------------------------- achievements
+
+def load_achievements(appid):
+    """Cached achievements for a game, or None if they were never fetched."""
+    return _read_json(ACH_DIR / f"{appid}.json", None)
+
+
+def fetch_achievements(cfg, steam_id, appid):
+    """Fetch, merge, cache and return a game's achievements.
+
+    Returns {"fetched_at", "achievements": [...]}; an empty list means the game has none.
+    """
+    key = cfg["steam_api_key"]
+    base = urllib.parse.urlencode({"key": key, "appid": appid, "l": "english"})
+    with _friendly_errors(key):
+        try:
+            q = urllib.parse.urlencode({"steamid": steam_id})
+            player = _http_json(f"{STEAM_API}/ISteamUserStats/GetPlayerAchievements/v1/?{base}&{q}")
+            unlocked = {a["apiname"]: a for a in player.get("playerstats", {}).get("achievements", [])}
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "replace").lower()
+            # Steam answers 401/403 both for a wrong key and for a private profile;
+            # only the text tells them apart
+            if "key=" in body or e.code == 401:
+                raise SyncError("Steam didn't accept your API key. Check it in Settings.") from None
+            if e.code == 403 or "not public" in body:
+                raise SyncError("Steam keeps this profile's achievements private. On your Steam "
+                                "privacy settings page, set “Game details” to “Public”.") from None
+            if e.code == 400:  # "Requested app has no stats": the game has no achievements
+                unlocked = None
+            else:
+                raise
+        schema = []
+        if unlocked is not None:
+            data = _http_json(f"{STEAM_API}/ISteamUserStats/GetSchemaForGame/v2/?{base}")
+            schema = data.get("game", {}).get("availableGameStats", {}).get("achievements", [])
+        rarity = {}
+        if schema:
+            try:
+                q = urllib.parse.urlencode({"gameid": appid})
+                data = _http_json(f"{STEAM_API}/ISteamUserStats/"
+                                  f"GetGlobalAchievementPercentagesForApp/v2/?{q}")
+                rarity = {a["name"]: float(a["percent"])
+                          for a in data["achievementpercentages"]["achievements"]}
+            except (urllib.error.URLError, KeyError, ValueError, TypeError):
+                pass  # rarity is a nice extra; the list works without it
+
+    achievements = []
+    for a in schema:
+        mine = (unlocked or {}).get(a["name"], {})
+        achievements.append({
+            "name": a.get("displayName") or a["name"],
+            "description": a.get("description") or ("Hidden achievement" if a.get("hidden") else ""),
+            "achieved": bool(mine.get("achieved")),
+            "unlocked_at": mine.get("unlocktime", 0),
+            "icon": a.get("icon"),
+            "icon_locked": a.get("icongray"),
+            "percent": rarity.get(a["name"]),
+        })
+    # Unlocked first (newest first), then locked from most to least common
+    achievements.sort(key=lambda a: (not a["achieved"], -a["unlocked_at"],
+                                     -(a["percent"] or 0)))
+    result = {"fetched_at": int(time.time()), "achievements": achievements}
+    _write_json(ACH_DIR / f"{appid}.json", result)
+    return result

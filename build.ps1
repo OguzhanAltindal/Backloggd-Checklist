@@ -5,8 +5,9 @@ Set-Location $PSScriptRoot
 
 if (-not (Test-Path ".build-venv")) {
     python -m venv .build-venv
-    .\.build-venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check pyinstaller
 }
+# Pillow draws the game covers and achievement icons
+.\.build-venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check pyinstaller pillow
 
 python make_icon.py
 

@@ -19,9 +19,9 @@ your Steam account.
 ## Is my account safe?
 
 - **No passwords, ever.** The app never asks for your Steam, Backloggd or any other login.
-- **Official APIs only.** It talks only to Steam's official Web API (`api.steampowered.com`) and,
-  optionally, IGDB's official API (`api.igdb.com` / `id.twitch.tv`). No scraping, no unofficial
-  endpoints, no browser automation.
+- **Official sources only.** It talks only to Steam's official Web API (`api.steampowered.com`),
+  Steam's public image server for game pictures, and optionally IGDB's official API
+  (`api.igdb.com` / `id.twitch.tv`). No scraping, no unofficial endpoints, no browser automation.
 - **Read-only.** It only *reads* your Steam game list. Nothing is changed on Steam, and
   **nothing is ever sent to Backloggd**: you add each game yourself.
 - **Your keys stay on your computer**, encrypted with your Windows account. The app never shows
@@ -47,31 +47,38 @@ to type into a web page (like `localhost`) has a **Copy** button.
 ## Using it
 
 1. Click **Sync Steam library**. Your games appear in two groups: **Played** and
-   **Not played yet** (games with no playtime, including ones you just bought). Click the box
-   next to a group to collapse or expand it; the app remembers your choice. Sort by name,
-   playtime or last played with the **Sort** menu or by clicking a column title.
-2. Sign in to backloggd.com in your browser as usual.
-3. **Double-click** a game (or select it and click **Open on Backloggd**). Its Backloggd page
-   opens in your browser: log it there.
-4. Press **Space** (or click the ✓ column) to mark it as added. **Hide added** keeps the list short.
-5. Games with a **search** link open a Backloggd search: click the right result. If a page says
-   “Page not found”, right-click the game and choose **Search on Backloggd**.
-6. Bought new games? Click **Sync Steam library** again. Your marks are kept.
+   **Not played yet** (games with no playtime, including ones you just bought). Click a group's
+   title to collapse or expand it; the app remembers your choice.
+2. Choose **Grid** (game covers) or **List** (rows with playtime and last played) at the top
+   right, and **Theme**: Light, Dark or the same as Windows.
+3. **Sort** by name, playtime or last played. Click the active sort again to flip the order;
+   the arrow (▲ / ▼) shows which way it's sorted. In List view you can also click the column titles.
+4. Rest the mouse on a game to see its playtime and when you last played it.
+5. Sign in to backloggd.com in your browser as usual, then click **Add to Backloggd** on a game.
+   Its Backloggd page opens in your browser, where you add it yourself.
+6. Tick the check box on a game to mark it as added. **Hide added** keeps the list short.
+7. Click a game itself to open its details: a bigger picture and your **Steam achievements**
+   (what you unlocked and when, and how rare each one is).
+8. If a Backloggd page says “Page not found”, right-click the game and choose
+   **Search on Backloggd**.
+9. Bought new games? Click **Sync Steam library** again. Your marks are kept.
 
 The **How to use** button in the app shows these steps any time.
 
 ## Where data is stored
 
 Everything lives in `%APPDATA%\BackloggdChecklist`: encrypted settings (`config.dat`), your
-library (`library.json`), your added marks (`added.json`), IGDB matches (`igdb_cache.json`) and
-which groups you collapsed (`ui.json`). Delete that folder to reset the app completely.
+library (`library.json`), your added marks (`added.json`), IGDB matches (`igdb_cache.json`), your
+view, sort and theme choices (`ui.json`), downloaded game pictures (`images`) and achievements
+(`achievements`). Delete that folder to reset the app completely.
 
 ---
 
 ## For developers
 
-**Run from source:** install Python 3.9+ and double-click `app.pyw` (keep it next to
-`checklist_core.py`). Only the standard library is used.
+**Run from source:** install Python 3.9+, run `pip install pillow` (for the game pictures), and
+double-click `app.pyw`. Keep it next to `checklist_core.py`, `theme.py` and `widgets.py`.
+Without Pillow the app still works, with placeholders instead of pictures.
 
 **Build the exe:** run this in PowerShell from the repository folder:
 

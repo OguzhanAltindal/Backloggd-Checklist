@@ -10,46 +10,44 @@ import tkinter as tk
 import webbrowser
 from datetime import datetime
 from pathlib import Path
-from tkinter import font as tkfont
 from tkinter import messagebox, ttk
 
 import checklist_core as core
+import theme
+from widgets import GameView, ImageLoader, Jobs, ListHeader, ScrollFrame, Tooltip
 
 STEAM_KEY_URL = "https://steamcommunity.com/dev/apikey"
 STEAM_PROFILE_URL = "https://steamcommunity.com/my/profile"
 STEAM_PRIVACY_URL = "https://steamcommunity.com/my/edit/settings"
 TWITCH_CREATE_URL = "https://dev.twitch.tv/console/apps/create"
 
-MUTED = "#5f6670"
-OK_COLOR = "#1d7a34"
-ERROR_COLOR = "#b3261e"
-
 HELP_TEXT = """\
 1. Click “Settings” to run the setup (about 2 minutes, done once).
 2. Click “Sync Steam library”. Your games appear in two groups,
-   “Played” and “Not played yet”. Click the small box next to a group
-   to close or open it. Click a column title to sort by it.
-3. Sign in to backloggd.com in your browser as usual.
-4. Double-click a game (or select it and click “Open on Backloggd”).
-   Backloggd opens in your browser: log the game there yourself.
-5. Press Space (or click the ✓ column) to mark the game as added.
-   Tick “Hide added” to keep the list short.
-6. Games with a “search” link open a Backloggd search: click the
-   right result. Exact links can be turned on in Settings (optional).
-   If a game's page shows “Page not found”, right-click the game and
+   “Played” and “Not played yet”. Click a group's title to close or open it.
+3. Switch between Grid and List at the top right. Sort by name, playtime
+   or last played; click the same sort again to flip the order (▲ / ▼).
+4. Rest the mouse on a game to see its playtime and when you last played it.
+5. Sign in to backloggd.com in your browser as usual.
+6. Click “Add to Backloggd” on a game: its Backloggd page opens in your
+   browser, where you add it yourself.
+7. Tick the check box on a game to mark it as added. “Hide added” keeps
+   the list short.
+8. Click a game itself to see its details and Steam achievements.
+9. If a Backloggd page shows “Page not found”, right-click the game and
    choose “Search on Backloggd”.
-7. Bought new games? Click “Sync Steam library” again. Your marks are kept.
+10. Bought new games? Click “Sync Steam library” again. Your marks are kept.
 
 Your safety:
 • The app never asks for a password and never logs in to any account.
-• It only talks to the official Steam Web API and the official IGDB API.
+• It only uses Steam's and IGDB's official services.
 • It never sends anything to Backloggd: you add every game yourself.
 • Your keys are encrypted with your Windows account and stored only on this computer."""
 
 
 def fmt_playtime(m):
     if not m:
-        return "never played"
+        return "Not played"
     h, mm = divmod(m, 60)
     return f"{h}h {mm}m" if h else f"{mm}m"
 
@@ -66,6 +64,7 @@ def show_modal(dialog, master):
     y = master.winfo_rooty() + (master.winfo_height() - dialog.winfo_reqheight()) // 3
     dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
     dialog.deiconify()
+    theme.set_titlebar(dialog, master.is_dark)
     dialog.grab_set()
     dialog.wait_visibility()
     dialog.focus_force()
@@ -76,18 +75,19 @@ def show_modal(dialog, master):
 class SetupWizard(tk.Toplevel):
     """Step-by-step setup written for people who have never used an API."""
 
-    WIDTH = 600
-    WRAP = 540
-
     def __init__(self, master, cfg, start=0):
         super().__init__(master)
+        self.app = master
         self.title("Setup")
         self.transient(master)
         self.resizable(False, False)
+        self.configure(bg=master.palette["bg"])
+        self.wrap = round(540 * master.scale)
         self.result = None
         self.sync_now = False
         self.events = queue.Queue()
         self.busy = False
+        self.status = None
         cfg = cfg or {}
         self.vars = {k: tk.StringVar(value=cfg.get(k, "")) for k in core.CONFIG_KEYS}
         for key in ("igdb_client_id", "igdb_client_secret"):
@@ -97,14 +97,14 @@ class SetupWizard(tk.Toplevel):
                       self.step_igdb, self.step_done]
         self.index = start
 
-        self.body = ttk.Frame(self, padding=(24, 20, 24, 8), width=self.WIDTH)
+        self.body = ttk.Frame(self, padding=(24, 20, 24, 8))
         self.body.pack(fill="both", expand=True)
         ttk.Separator(self).pack(fill="x")
         footer = ttk.Frame(self, padding=(24, 12))
         footer.pack(fill="x")
-        self.step_label = ttk.Label(footer, foreground=MUTED)
+        self.step_label = ttk.Label(footer, style="Muted.TLabel")
         self.step_label.pack(side="left")
-        self.next_btn = ttk.Button(footer, command=self.next, default="active")
+        self.next_btn = ttk.Button(footer, command=self.next, style="Accent.TButton")
         self.next_btn.pack(side="right")
         self.back_btn = ttk.Button(footer, text="Back", command=self.back)
         self.back_btn.pack(side="right", padx=(0, 8))
@@ -116,21 +116,21 @@ class SetupWizard(tk.Toplevel):
     # ---- page building helpers
 
     def heading(self, text, sub=None):
-        ttk.Label(self.body, text=text, font=("Segoe UI", 14, "bold")).pack(anchor="w")
+        ttk.Label(self.body, text=text, style="Title.TLabel").pack(anchor="w")
         if sub:
-            ttk.Label(self.body, text=sub, foreground=MUTED, wraplength=self.WRAP,
+            ttk.Label(self.body, text=sub, style="Muted.TLabel", wraplength=self.wrap,
                       justify="left").pack(anchor="w", pady=(2, 0))
         ttk.Frame(self.body, height=14).pack()
 
     def para(self, text, muted=False, pady=(0, 8)):
-        ttk.Label(self.body, text=text, wraplength=self.WRAP, justify="left",
-                  foreground=MUTED if muted else "").pack(anchor="w", pady=pady)
+        ttk.Label(self.body, text=text, wraplength=self.wrap, justify="left",
+                  style="Muted.TLabel" if muted else "TLabel").pack(anchor="w", pady=pady)
 
     def numbered(self, n, text):
         row = ttk.Frame(self.body)
         row.pack(fill="x", pady=(6, 4))
-        ttk.Label(row, text=f"{n}.", width=3, font=("Segoe UI", 10, "bold")).pack(side="left", anchor="n")
-        ttk.Label(row, text=text, wraplength=self.WRAP - 30, justify="left").pack(side="left", anchor="w")
+        ttk.Label(row, text=f"{n}.", width=3, style="Bold.TLabel").pack(side="left", anchor="n")
+        ttk.Label(row, text=text, wraplength=self.wrap - 30, justify="left").pack(side="left", anchor="w")
 
     def indent(self):
         frame = ttk.Frame(self.body)
@@ -144,7 +144,7 @@ class SetupWizard(tk.Toplevel):
     def copy_field(self, value):
         """A read-only box with the text and a Copy button, for pasting into web forms."""
         frame = self.indent()
-        box = ttk.Entry(frame, width=24, font=("Consolas", 11))
+        box = ttk.Entry(frame, width=24, font=self.app.fonts["mono"])
         box.insert(0, value)
         box.configure(state="readonly")
         box.pack(side="left")
@@ -172,11 +172,11 @@ class SetupWizard(tk.Toplevel):
         return entry
 
     def status_line(self):
-        self.status = ttk.Label(self.body, text="", wraplength=self.WRAP, justify="left")
+        self.status = ttk.Label(self.body, text="", wraplength=self.wrap, justify="left")
         self.status.pack(anchor="w", pady=(10, 0))
 
-    def set_status(self, text, color=""):
-        self.status.configure(text=text, foreground=color)
+    def set_status(self, text, style="TLabel"):
+        self.status.configure(text=text, style=style)
 
     # ---- steps (each builds its page and returns the Next button text)
 
@@ -258,8 +258,8 @@ class SetupWizard(tk.Toplevel):
         if not self.has_igdb():
             self.para("Exact links are off, so games will open a Backloggd search. You can turn "
                       "them on any time from Settings.", muted=True)
-        self.para("Next, the app reads your Steam library. Then double-click any game to open "
-                  "it on Backloggd.")
+        self.para("Next, the app reads your Steam library. Then click “Add to Backloggd” on any "
+                  "game to open it on Backloggd.")
         return "Sync my library"
 
     # ---- navigation
@@ -294,7 +294,7 @@ class SetupWizard(tk.Toplevel):
             try:
                 core.check_steam_key_format(self.vars["steam_api_key"].get())
             except core.SyncError as e:
-                self.set_status(str(e), ERROR_COLOR)
+                self.set_status(str(e), "Error.TLabel")
                 return
             self.go(self.index + 1)
         elif step == self.step_steam_profile:
@@ -329,7 +329,7 @@ class SetupWizard(tk.Toplevel):
         self.busy = True
         self.next_btn.configure(state="disabled")
         self.back_btn.configure(state="disabled")
-        self.set_status("Checking…", MUTED)
+        self.set_status("Checking…", "Muted.TLabel")
 
         def work():
             try:
@@ -354,9 +354,9 @@ class SetupWizard(tk.Toplevel):
         self.next_btn.configure(state="normal")
         self.back_btn.configure(state="normal")
         if kind == "error":
-            self.set_status(payload, ERROR_COLOR)
+            self.set_status(payload, "Error.TLabel")
             return
-        self.set_status(ok_text(payload), OK_COLOR)
+        self.set_status(ok_text(payload), "Ok.TLabel")
 
         def advance():
             if self.winfo_exists():
@@ -373,6 +373,7 @@ class HelpDialog(tk.Toplevel):
         self.title("How to use")
         self.transient(master)
         self.resizable(False, False)
+        self.configure(bg=master.palette["bg"])
         body = ttk.Frame(self, padding=18)
         body.pack(fill="both", expand=True)
         ttk.Label(body, text=HELP_TEXT, justify="left").pack(anchor="w")
@@ -382,26 +383,223 @@ class HelpDialog(tk.Toplevel):
         show_modal(self, master)
 
 
+# ---------------------------------------------------------------- game details
+
+class GameDetail(tk.Toplevel):
+    """A game's banner, actions and Steam achievements."""
+
+    def __init__(self, app, game):
+        super().__init__(app)
+        self.app, self.game = app, game
+        S = app.scale
+        self.S = S
+        self.title(app.name_of(game))
+        self.geometry(f"{round(660 * S)}x{round(760 * S)}")
+        self.minsize(round(520 * S), round(480 * S))
+        self.icon_labels = []
+        self.blank = None
+        self.protocol("WM_DELETE_WINDOW", self.close)
+
+        outer = ttk.Frame(self, padding=round(18 * S))
+        outer.pack(fill="both", expand=True)
+
+        self.banner_size = (round(460 * S), round(215 * S))
+        self.banner = tk.Canvas(outer, width=self.banner_size[0], height=self.banner_size[1],
+                                highlightthickness=0, bd=0)
+        self.banner.pack(anchor="w")
+        ttk.Label(outer, text=app.name_of(game), style="Title.TLabel",
+                  wraplength=round(600 * S)).pack(anchor="w", pady=(12, 2))
+        ttk.Label(outer, style="Muted.TLabel", text=(
+            f"Playtime: {app.fmt_playtime(game['playtime'])}   ·   "
+            f"Last played: {app.fmt_last(game)}   ·   {app.link_label(game)}")).pack(anchor="w")
+
+        actions = ttk.Frame(outer)
+        actions.pack(anchor="w", pady=(12, 12))
+        self.add_btn = ttk.Button(actions, style="Accent.TButton",
+                                  command=lambda: app.open_backloggd(game))
+        self.add_btn.pack(side="left")
+        self.mark_btn = ttk.Button(actions, command=self.toggle_added)
+        self.mark_btn.pack(side="left", padx=(8, 0))
+        ttk.Button(actions, text="Search on Backloggd ↗",
+                   command=lambda: app.search_backloggd(game)).pack(side="left", padx=(8, 0))
+        ttk.Button(actions, text="Steam store ↗",
+                   command=lambda: app.open_store(game)).pack(side="left", padx=(8, 0))
+        self.update_buttons()
+
+        ttk.Separator(outer).pack(fill="x", pady=(0, 12))
+        head = ttk.Frame(outer)
+        head.pack(fill="x")
+        ttk.Label(head, text="Achievements", style="Heading.TLabel").pack(side="left")
+        self.refresh_btn = ttk.Button(head, text="⟳ Refresh", command=lambda: self.load(force=True))
+        self.refresh_btn.pack(side="right")
+        self.summary = ttk.Label(outer, text="", style="Muted.TLabel", wraplength=round(600 * S),
+                                 justify="left")
+        self.summary.pack(anchor="w", pady=(6, 4))
+        self.progress = ttk.Progressbar(outer, mode="determinate", maximum=100)
+        self.list = ScrollFrame(outer, app.palette["surface"])
+        self.list.pack(fill="both", expand=True, pady=(6, 0))
+
+        self.retheme()
+        self.draw_banner()
+        self.load()
+        self.update_idletasks()
+        x = app.winfo_rootx() + (app.winfo_width() - self.winfo_width()) // 2
+        y = app.winfo_rooty() + 30
+        self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        self.focus_force()
+
+    def close(self):
+        self.app.details.pop(str(self.game["appid"]), None)
+        self.destroy()
+
+    def retheme(self):
+        p = self.app.palette
+        self.configure(bg=p["bg"])
+        self.banner.configure(bg=p["bg"])
+        self.list.canvas.configure(bg=p["surface"])
+        for lbl in self.icon_labels:
+            lbl.configure(bg=p["surface"])
+        theme.set_titlebar(self, self.app.is_dark)
+        self.draw_banner()
+
+    def update_buttons(self):
+        added = self.app.is_added(self.game)
+        self.add_btn.configure(text="Open on Backloggd ↗" if added else "Add to Backloggd ↗")
+        self.mark_btn.configure(text="✓ Marked as added" if added else "Mark as added")
+
+    def toggle_added(self):
+        self.app.toggle_added(self.game)
+        self.update_buttons()
+
+    def draw_banner(self):
+        p = self.app.palette
+        w, h = self.banner_size
+        g = self.game
+        img = self.app.images.get(("banner", g["appid"], self.banner_size),
+                                  lambda: core.steam_art(g["appid"], "header"),
+                                  self.banner_size, "cover", self.draw_banner_if_open)
+        self.banner.delete("all")
+        if img:
+            self.banner.create_image(0, 0, image=img, anchor="nw")
+        else:
+            self.banner.create_rectangle(0, 0, w, h, fill=p["placeholder"], outline="")
+            self.banner.create_text(w / 2, h / 2, text=self.app.name_of(g), fill=p["muted"],
+                                    font=self.app.fonts["heading"], width=w - 40)
+
+    def draw_banner_if_open(self):
+        if self.winfo_exists():
+            self.draw_banner()
+
+    # ---- achievements
+
+    def load(self, force=False):
+        appid = self.game["appid"]
+        cached = None if force else core.load_achievements(appid)
+        if cached is not None:
+            self.show_achievements(cached)
+            return
+        steam_id = self.app.library.get("steam_id")
+        if not core.config_complete(self.app.cfg) or not steam_id:
+            self.summary.configure(text="Sync your Steam library first to see achievements.",
+                                   style="Muted.TLabel")
+            return
+        self.summary.configure(text="Loading achievements from Steam…", style="Muted.TLabel")
+        self.refresh_btn.configure(state="disabled")
+        cfg = dict(self.app.cfg)
+        self.app.jobs.submit(lambda: core.fetch_achievements(cfg, steam_id, appid), self.loaded)
+
+    def loaded(self, result, error):
+        if not self.winfo_exists():
+            return
+        self.refresh_btn.configure(state="normal")
+        if error is not None:
+            msg = str(error) if isinstance(error, core.SyncError) else \
+                f"Couldn't load achievements ({type(error).__name__}). Try Refresh."
+            self.summary.configure(text=msg, style="Error.TLabel")
+            return
+        self.show_achievements(result)
+
+    def show_achievements(self, data):
+        for child in self.list.inner.winfo_children():
+            child.destroy()
+        self.icon_labels = []
+        items = data.get("achievements", [])
+        if not items:
+            self.progress.pack_forget()
+            self.summary.configure(text="This game has no Steam achievements.", style="Muted.TLabel")
+            return
+        done = sum(1 for a in items if a["achieved"])
+        pct = round(100 * done / len(items))
+        when = fmt_date(data.get("fetched_at", 0))
+        self.summary.configure(style="TLabel",
+                               text=f"{done} of {len(items)} unlocked ({pct}%)   ·   updated {when}")
+        self.progress.configure(value=pct)
+        self.progress.pack(fill="x", after=self.summary)
+        for a in items:
+            self.add_row(a)
+
+    def add_row(self, a):
+        S, p = self.S, self.app.palette
+        row = ttk.Frame(self.list.inner, style="Card.TFrame", padding=(10, 8))
+        row.pack(fill="x")
+        size = (round(44 * S), round(44 * S))
+        if self.blank is None:
+            self.blank = tk.PhotoImage(width=size[0], height=size[1])
+        icon = tk.Label(row, bg=p["surface"], image=self.blank, bd=0)
+        icon.pack(side="left", anchor="n")
+        self.icon_labels.append(icon)
+        url = a["icon"] if a["achieved"] else (a["icon_locked"] or a["icon"])
+        if url:
+            key = ("ach", url, size)
+
+            def ready(lbl=icon, k=key):
+                if lbl.winfo_exists() and k in self.app.images.cache:
+                    lbl.configure(image=self.app.images.cache[k])
+
+            img = self.app.images.get(key, lambda u=url: core.url_image(u), size, "contain", ready)
+            if img:
+                icon.configure(image=img)
+
+        right = ttk.Frame(row, style="Card.TFrame")
+        right.pack(side="right", anchor="n", padx=(10, 0))
+        if a["achieved"]:
+            ttk.Label(right, text=f"Unlocked {fmt_date(a['unlocked_at'])}", style="CardBold.TLabel",
+                      foreground=p["ok"]).pack(anchor="e")
+        else:
+            ttk.Label(right, text="Locked", style="CardMuted.TLabel").pack(anchor="e")
+        if a.get("percent") is not None:
+            ttk.Label(right, text=f"{a['percent']:.1f}% of players", style="CardMuted.TLabel"
+                      ).pack(anchor="e")
+
+        text = ttk.Frame(row, style="Card.TFrame")
+        text.pack(side="left", fill="x", expand=True, padx=(12, 0))
+        ttk.Label(text, text=a["name"], style="CardBold.TLabel",
+                  foreground=p["text"] if a["achieved"] else p["muted"]).pack(anchor="w")
+        if a.get("description"):
+            ttk.Label(text, text=a["description"], style="CardMuted.TLabel",
+                      wraplength=round(330 * S), justify="left").pack(anchor="w")
+        ttk.Separator(self.list.inner).pack(fill="x")
+
+
 # ---------------------------------------------------------------- main window
 
 class App(tk.Tk):
-    # The game name lives in the tree column (#0) so it can sit under a collapsible group
-    COLUMNS = (("done", "Added", 60, "center"),
-               ("playtime", "Playtime", 110, "e"), ("last", "Last played", 110, "center"),
-               ("match", "Backloggd link", 120, "center"))
     # Games with no playtime were never played (a recent date there only means a recent purchase)
     GROUPS = (("grp:played", "Played", lambda g: g["playtime"] > 0),
               ("grp:unplayed", "Not played yet", lambda g: g["playtime"] == 0))
+    SORTS = (("name", "Name"), ("playtime", "Playtime"), ("last", "Last played"))
 
     def __init__(self):
         super().__init__()
+        self.core = core
         self.title("Backloggd Checklist")
         # Next to the script, or inside the bundle when packaged with PyInstaller
         icon = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "icon.ico"
         if icon.exists():
             self.iconbitmap(default=str(icon))
-        self.geometry("880x620")
-        self.minsize(640, 400)
+        self.scale = self.winfo_fpixels("1i") / 96
+        self.geometry(f"{round(1100 * self.scale)}x{round(740 * self.scale)}")
+        self.minsize(round(760 * self.scale), round(480 * self.scale))
 
         self.cfg = core.load_config()
         self.library = core.load_library()
@@ -409,192 +607,295 @@ class App(tk.Tk):
         self.games = {str(g["appid"]): g for g in self.library["games"]}
         self.ui = core.load_ui()
         self.collapsed = set(self.ui.get("collapsed", []))
+        self.view_mode = self.ui.get("view", "grid")
+        self.theme_mode = self.ui.get("theme", "system")
+        self.sort_key = self.ui.get("sort", "name")
+        self.sort_desc = self.ui.get("sort_desc", False)
+        self.details = {}
         self.events = queue.Queue()
         self.syncing = False
 
-        style = ttk.Style(self)
-        linespace = tkfont.nametofont("TkDefaultFont").metrics("linespace")
-        style.configure("Treeview", rowheight=linespace + 10)
+        self.fonts = theme.fonts(self)
+        self.jobs = Jobs(self)
+        self.images = ImageLoader(self.jobs)
+        self.tooltip = Tooltip(self)
+        self.is_dark = theme.resolve(self.theme_mode) == "dark"
+        self.palette = theme.PALETTES["dark" if self.is_dark else "light"]
+        theme.apply(self, self.palette, self.fonts)
 
         self._build_toolbar()
-        self._build_list(style)
+        self._build_view()
         self._build_footer()
-        self.refresh()
+        self.menu = tk.Menu(self, tearoff=False)
+        self.apply_theme()
+        self.after(150, lambda: theme.set_titlebar(self, self.is_dark))
 
         if not core.config_complete(self.cfg):
-            self.after(200, lambda: self.open_settings(start=0))
+            self.after(300, lambda: self.open_settings(start=0))
 
     # ---- layout
 
     def _build_toolbar(self):
-        bar = ttk.Frame(self, padding=(12, 12, 12, 6))
+        bar = ttk.Frame(self, padding=(14, 12, 14, 6))
         bar.pack(fill="x")
-        self.sync_btn = ttk.Button(bar, text="⟳  Sync Steam library", command=self.start_sync)
+        self.sync_btn = ttk.Button(bar, text="⟳  Sync Steam library", style="Accent.TButton",
+                                   command=self.start_sync)
         self.sync_btn.pack(side="left")
         ttk.Button(bar, text="Settings", command=self.open_settings).pack(side="left", padx=(8, 0))
         ttk.Button(bar, text="How to use", command=lambda: HelpDialog(self)).pack(side="left", padx=(8, 0))
 
-        filters = ttk.Frame(self, padding=(12, 0, 12, 8))
+        self.theme_btn = ttk.Menubutton(bar, text="Theme")
+        self.theme_menu = tk.Menu(self.theme_btn, tearoff=False)
+        self.theme_var = tk.StringVar(value=self.theme_mode)
+        for value, label in (("system", "Same as Windows"), ("light", "Light"), ("dark", "Dark")):
+            self.theme_menu.add_radiobutton(label=label, value=value, variable=self.theme_var,
+                                            command=lambda v=value: self.set_theme(v))
+        self.theme_btn.configure(menu=self.theme_menu)
+        self.theme_btn.pack(side="right")
+
+        self.view_btns = {}
+        for mode, label in (("list", "☰  List"), ("grid", "▦  Grid")):
+            b = ttk.Button(bar, text=label, command=lambda m=mode: self.set_view(m))
+            b.pack(side="right", padx=(0, 8 if mode == "grid" else 2))
+            self.view_btns[mode] = b
+        ttk.Label(bar, text="View", style="Muted.TLabel").pack(side="right", padx=(0, 6))
+
+        filters = ttk.Frame(self, padding=(14, 2, 14, 8))
         filters.pack(fill="x")
-        ttk.Label(filters, text="Search").pack(side="left")
         self.query = tk.StringVar()
         self.query.trace_add("write", lambda *a: self.refresh())
-        search = ttk.Entry(filters, textvariable=self.query, width=28)
-        search.pack(side="left", padx=(6, 14))
+        search = ttk.Entry(filters, textvariable=self.query, width=26)
+        search.pack(side="left")
+        self._placeholder(search, "Search games…")
         self.bind("<Control-f>", lambda e: search.focus_set())
 
-        ttk.Label(filters, text="Sort").pack(side="left")
-        self.sort = tk.StringVar(value="Name")
-        sort_box = ttk.Combobox(filters, textvariable=self.sort, state="readonly", width=12,
-                                values=("Name", "Playtime", "Last played"))
-        sort_box.pack(side="left", padx=(6, 14))
-        sort_box.bind("<<ComboboxSelected>>", lambda e: self.refresh())
+        ttk.Label(filters, text="Sort", style="Muted.TLabel").pack(side="left", padx=(16, 6))
+        self.sort_btns = {}
+        for key, label in self.SORTS:
+            b = ttk.Button(filters, command=lambda k=key: self.set_sort(k))
+            b.pack(side="left", padx=(0, 2))
+            self.sort_btns[key] = b
 
         self.hide_done = tk.BooleanVar()
         ttk.Checkbutton(filters, text="Hide added", variable=self.hide_done,
-                        command=self.refresh).pack(side="left", padx=(0, 10))
+                        command=self.refresh).pack(side="left", padx=(16, 10))
         self.only_unmatched = tk.BooleanVar()
         ttk.Checkbutton(filters, text="Only search links", variable=self.only_unmatched,
                         command=self.refresh).pack(side="left")
 
-    def _build_list(self, style):
-        frame = ttk.Frame(self, padding=(12, 0))
-        frame.pack(fill="both", expand=True)
-        self.tree = ttk.Treeview(frame, columns=[c[0] for c in self.COLUMNS],
-                                 show="tree headings", selectmode="browse")
-        self.tree.heading("#0", text="Game", anchor="w", command=lambda: self.set_sort("Name"))
-        self.tree.column("#0", width=380, anchor="w", stretch=True)
-        sort_by_heading = {"playtime": "Playtime", "last": "Last played"}
-        for key, title, width, anchor in self.COLUMNS:
-            self.tree.heading(key, text=title, anchor=anchor)
-            if key in sort_by_heading:
-                self.tree.heading(key, command=lambda s=sort_by_heading[key]: self.set_sort(s))
-            self.tree.column(key, width=width, anchor=anchor, stretch=False)
-        bold = tkfont.nametofont("TkDefaultFont").copy()
-        bold.configure(weight="bold")
-        self.tree.tag_configure("group", font=bold)
-        self.tree.tag_configure("done", foreground="#9a9a9a")
-        self.tree.tag_configure("unmatched", foreground="#a86400")
-        self.tree.bind("<<TreeviewOpen>>", lambda e: self.remember_group(open_=True))
-        self.tree.bind("<<TreeviewClose>>", lambda e: self.remember_group(open_=False))
-        scroll = ttk.Scrollbar(frame, orient="vertical", command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scroll.set)
-        self.tree.pack(side="left", fill="both", expand=True)
-        scroll.pack(side="right", fill="y")
+    def _placeholder(self, entry, text):
+        """Grey hint text inside the search box while it's empty."""
+        def show(_=None):
+            if not self.query.get():
+                entry.configure(foreground=self.palette["muted"])
+                entry.insert(0, text)
+                entry.placeholder = True
 
-        self.tree.bind("<Double-1>", self.on_double_click)
-        self.tree.bind("<Button-1>", self.on_click, add="+")
-        self.tree.bind("<Return>", lambda e: self.open_selected())
-        self.tree.bind("<space>", lambda e: self.toggle_selected())
-        self.tree.bind("<<TreeviewSelect>>", lambda e: self.update_buttons())
-        self.tree.bind("<Button-3>", self.on_right_click)
+        def hide(_=None):
+            if getattr(entry, "placeholder", False):
+                entry.placeholder = False
+                entry.delete(0, "end")
+                entry.configure(foreground=self.palette["text"])
 
-        self.menu = tk.Menu(self, tearoff=False)
-        self.menu.add_command(label="Open on Backloggd", command=self.open_selected)
-        self.menu.add_command(label="Search on Backloggd (if the page doesn't open)",
-                              command=self.search_selected)
-        self.menu.add_command(label="Mark as added / not added", command=self.toggle_selected)
-        self.menu.add_command(label="Open in Steam store", command=self.open_store)
+        entry.placeholder = False
+        self._search_hint = text
+        self.search_entry = entry
+        entry.bind("<FocusIn>", hide)
+        entry.bind("<FocusOut>", show)
+        self.after(50, show)
 
-        bg = style.lookup("Treeview", "fieldbackground") or "white"
-        self.empty = tk.Label(frame, text="", fg="#777", bg=bg, justify="center")
+    def _build_view(self):
+        area = ttk.Frame(self, padding=(14, 0, 14, 0))
+        area.pack(fill="both", expand=True)
+        self.view = GameView(area, self)
+        self.header = ListHeader(area, self, self.view)
+        self.scrollbar = ttk.Scrollbar(area, orient="vertical", command=self.view.yview)
+        self.view.scrollbar = self.scrollbar
+        self.view.configure(yscrollcommand=self.view.on_scroll)
+        self.scrollbar.pack(side="right", fill="y")
+        self.view.pack(side="bottom", fill="both", expand=True)
 
     def _build_footer(self):
-        actions = ttk.Frame(self, padding=(12, 8, 12, 4))
-        actions.pack(fill="x")
-        self.open_btn = ttk.Button(actions, text="Open on Backloggd", command=self.open_selected)
-        self.open_btn.pack(side="left")
-        self.toggle_btn = ttk.Button(actions, text="Mark as added", command=self.toggle_selected)
-        self.toggle_btn.pack(side="left", padx=(8, 0))
-        self.counter = ttk.Label(actions, text="")
-        self.counter.pack(side="right")
-
-        status = ttk.Frame(self, padding=(12, 0, 12, 10))
+        status = ttk.Frame(self, padding=(14, 8, 14, 10))
         status.pack(fill="x")
+        self.counter = ttk.Label(status, text="")
+        self.counter.pack(side="right")
         self.progress = ttk.Progressbar(status, mode="indeterminate", length=120)
-        self.status = ttk.Label(status, text="", foreground="#666")
+        self.status = ttk.Label(status, text="", style="Muted.TLabel")
         self.status.pack(side="left")
+
+    # ---- small helpers used by the view
+
+    def name_of(self, g):
+        return g["igdb_name"] or g["steam_name"]
+
+    def is_added(self, g):
+        return str(g["appid"]) in self.done
+
+    def link_label(self, g):
+        return "Exact Backloggd page" if g["slug"] else "Opens a Backloggd search"
+
+    fmt_playtime = staticmethod(fmt_playtime)
+
+    def fmt_last(self, g):
+        # Unplayed games: Steam's date is the purchase, not a play session
+        return fmt_date(g["last"]) if g["playtime"] else "—"
+
+    def tip_text(self, g):
+        if not g["playtime"]:
+            return "Not played yet"
+        return f"Playtime: {fmt_playtime(g['playtime'])}\nLast played: {fmt_date(g['last'])}"
+
+    def sort_arrow(self, key):
+        if key != self.sort_key:
+            return ""
+        return "  ▼" if self.sort_desc else "  ▲"
+
+    def empty_text(self):
+        if not self.games:
+            return "No games yet.\n\nClick “Sync Steam library” to load your games."
+        return "No games match the current filters."
+
+    # ---- state changes
+
+    def save_ui(self):
+        self.ui.update({"collapsed": sorted(self.collapsed), "view": self.view_mode,
+                        "theme": self.theme_mode, "sort": self.sort_key, "sort_desc": self.sort_desc})
+        core.save_ui(self.ui)
+
+    def set_sort(self, key):
+        if key == self.sort_key:
+            self.sort_desc = not self.sort_desc
+        else:
+            # Most played / most recent first feels natural; names start at A
+            self.sort_key, self.sort_desc = key, key != "name"
+        self.save_ui()
+        self.refresh()
+
+    def set_view(self, mode):
+        self.view_mode = mode
+        self.save_ui()
+        self.view.yview_moveto(0)
+        self.refresh()
+
+    def set_theme(self, mode):
+        self.theme_mode = mode
+        self.save_ui()
+        self.apply_theme()
+
+    def apply_theme(self):
+        self.is_dark = theme.resolve(self.theme_mode) == "dark"
+        self.palette = theme.PALETTES["dark" if self.is_dark else "light"]
+        theme.apply(self, self.palette, self.fonts)
+        p = self.palette
+        self.configure(bg=p["bg"])
+        for m in (self.menu, self.theme_menu):
+            m.configure(bg=p["surface"], fg=p["text"], activebackground=p["accent"],
+                        activeforeground=p["accent_text"], selectcolor=p["accent"])
+        self.theme_btn.configure(text={"system": "Theme: Auto", "light": "Theme: Light",
+                                       "dark": "Theme: Dark"}[self.theme_mode])
+        self.search_entry.configure(foreground=p["muted"] if self.search_entry.placeholder else p["text"])
+        theme.set_titlebar(self, self.is_dark)
+        for d in list(self.details.values()):
+            d.retheme()
+        self.refresh()
+
+    def toggle_group(self, gid):
+        self.collapsed.symmetric_difference_update({gid})
+        self.save_ui()
+        self.refresh()
+
+    def toggle_added(self, g):
+        self.done.symmetric_difference_update({str(g["appid"])})
+        core.save_done(self.done)
+        self.refresh()
+        d = self.details.get(str(g["appid"]))
+        if d:
+            d.update_buttons()
+
+    def open_backloggd(self, g):
+        webbrowser.open(core.backloggd_url(g))
+
+    def search_backloggd(self, g):
+        webbrowser.open(core.backloggd_search_url(g))
+
+    def open_store(self, g):
+        webbrowser.open(f"https://store.steampowered.com/app/{g['appid']}/")
+
+    def open_details(self, g):
+        key = str(g["appid"])
+        if key in self.details and self.details[key].winfo_exists():
+            self.details[key].lift()
+            self.details[key].focus_force()
+            return
+        self.details[key] = GameDetail(self, g)
+
+    def show_menu(self, g, x, y):
+        m = self.menu
+        m.delete(0, "end")
+        m.add_command(label="Details and achievements", command=lambda: self.open_details(g))
+        m.add_command(label="Open on Backloggd" if self.is_added(g) else "Add to Backloggd",
+                      command=lambda: self.open_backloggd(g))
+        m.add_command(label="Search on Backloggd (if the page doesn't open)",
+                      command=lambda: self.search_backloggd(g))
+        m.add_separator()
+        m.add_command(label="Mark as not added" if self.is_added(g) else "Mark as added",
+                      command=lambda: self.toggle_added(g))
+        m.add_command(label="Open in Steam store", command=lambda: self.open_store(g))
+        m.tk_popup(x, y)
 
     # ---- list
 
+    def query_text(self):
+        q = self.query.get()
+        return "" if q == self._search_hint else q.strip().lower()
+
     def visible_games(self):
-        q = self.query.get().strip().lower()
-        games = []
+        q = self.query_text()
+        out = []
         for appid, g in self.games.items():
-            name = g["igdb_name"] or g["steam_name"]
-            if q and q not in name.lower() and q not in g["steam_name"].lower():
+            if q and q not in self.name_of(g).lower() and q not in g["steam_name"].lower():
                 continue
             if self.hide_done.get() and appid in self.done:
                 continue
             if self.only_unmatched.get() and g["slug"]:
                 continue
-            games.append(g)
-        sort = self.sort.get()
-        games.sort(key=lambda g: (g["igdb_name"] or g["steam_name"]).lower())
-        if sort == "Playtime":
-            games.sort(key=lambda g: -g["playtime"])
-        elif sort == "Last played":
-            games.sort(key=lambda g: -g["last"])
+            out.append(g)
+        return out
+
+    def sorted_games(self, games, played):
+        games.sort(key=lambda g: self.name_of(g).lower(), reverse=self.sort_key == "name" and self.sort_desc)
+        if self.sort_key == "playtime" and played:
+            games.sort(key=lambda g: g["playtime"], reverse=self.sort_desc)
+        elif self.sort_key == "last":
+            # For unplayed games this orders by purchase date: newest purchases first
+            games.sort(key=lambda g: g["last"], reverse=self.sort_desc)
         return games
 
-    def set_sort(self, value):
-        self.sort.set(value)
-        self.refresh()
-
-    def remember_group(self, open_):
-        iid = self.tree.focus()
-        if not iid.startswith("grp:"):
-            return
-        (self.collapsed.discard if open_ else self.collapsed.add)(iid)
-        self.ui["collapsed"] = sorted(self.collapsed)
-        core.save_ui(self.ui)
-
     def refresh(self):
-        selected = self.tree.selection()
-        self.tree.delete(*self.tree.get_children())
-        # Only highlight search links when exact links are on; otherwise every game is one
-        highlight = core.igdb_enabled(self.cfg)
+        for key, label in self.SORTS:
+            self.sort_btns[key].configure(text=label + self.sort_arrow(key),
+                                          style="SegOn.TButton" if key == self.sort_key else "Seg.TButton")
+        for mode, b in self.view_btns.items():
+            b.configure(style="SegOn.TButton" if mode == self.view_mode else "Seg.TButton")
+        if self.view_mode == "list":
+            self.header.pack(side="top", fill="x", before=self.view)
+            self.header.render()
+        else:
+            self.header.pack_forget()
+
         games = self.visible_games()
+        groups = []
         for gid, title, belongs in self.GROUPS:
-            members = [g for g in games if belongs(g)]
-            if not members:
-                continue
-            self.tree.insert("", "end", iid=gid, text=f"{title}  ({len(members)})",
-                             open=gid not in self.collapsed, tags=("group",))
-            for g in members:
-                appid = str(g["appid"])
-                is_done = appid in self.done
-                if is_done:
-                    tags = ("done",)
-                elif not g["slug"] and highlight:
-                    tags = ("unmatched",)
-                else:
-                    tags = ()
-                self.tree.insert(gid, "end", iid=appid, tags=tags,
-                                 text=g["igdb_name"] or g["steam_name"], values=(
-                                     "✓" if is_done else "",
-                                     fmt_playtime(g["playtime"]),
-                                     # Unplayed games: Steam's date is the purchase, not a session
-                                     fmt_date(g["last"]) if g["playtime"] else "—",
-                                     "exact page" if g["slug"] else "search",
-                                 ))
-        if selected and self.tree.exists(selected[0]):
-            self.tree.selection_set(selected[0])
-            self.tree.see(selected[0])
+            members = self.sorted_games([g for g in games if belongs(g)], gid == "grp:played")
+            if members:
+                groups.append((gid, title, members, gid not in self.collapsed))
+        self.view.set_data(groups, self.view_mode)
 
         total = len(self.games)
-        self.counter.configure(text=f"{len(self.done & self.games.keys())} / {total} added" if total else "")
-        if not total:
-            self.empty.configure(text="No games yet.\n\nClick “Sync Steam library” to load your games.")
-            self.empty.place(relx=0.5, rely=0.4, anchor="center")
-        elif not self.tree.get_children():
-            self.empty.configure(text="No games match the current filters.")
-            self.empty.place(relx=0.5, rely=0.4, anchor="center")
-        else:
-            self.empty.place_forget()
+        self.counter.configure(text=f"{len(self.done & self.games.keys())} of {total} added" if total else "")
         if not self.syncing:
             self.status.configure(text=self.last_sync_text())
-        self.update_buttons()
 
     def last_sync_text(self):
         ts = self.library.get("synced_at")
@@ -605,71 +906,6 @@ class App(tk.Tk):
             return f"Last synced {when} · Exact Backloggd links are off (optional, see Settings)"
         matched = sum(1 for g in self.games.values() if g["slug"])
         return f"Last synced {when} · {matched} of {len(self.games)} games have an exact Backloggd link"
-
-    def update_buttons(self):
-        g = self.selected_game()
-        state = "normal" if g else "disabled"
-        self.open_btn.configure(state=state,
-                                text="Search on Backloggd" if g and not g["slug"] else "Open on Backloggd")
-        self.toggle_btn.configure(state=state,
-                                  text="Mark as not added" if g and str(g["appid"]) in self.done
-                                  else "Mark as added")
-
-    def selected_game(self):
-        sel = self.tree.selection()
-        return self.games.get(sel[0]) if sel else None
-
-    # ---- actions
-
-    def open_selected(self):
-        g = self.selected_game()
-        if g:
-            webbrowser.open(core.backloggd_url(g))
-
-    def search_selected(self):
-        g = self.selected_game()
-        if g:
-            webbrowser.open(core.backloggd_search_url(g))
-
-    def open_store(self):
-        g = self.selected_game()
-        if g:
-            webbrowser.open(f"https://store.steampowered.com/app/{g['appid']}/")
-
-    def toggle_selected(self):
-        g = self.selected_game()
-        if not g:
-            return
-        appid = str(g["appid"])
-        self.done.symmetric_difference_update({appid})
-        core.save_done(self.done)
-        # Keep the cursor moving down the list when hiding added games
-        nxt = self.tree.next(appid) or self.tree.prev(appid)
-        self.refresh()
-        target = appid if self.tree.exists(appid) else nxt
-        if target and self.tree.exists(target):
-            self.tree.selection_set(target)
-            self.tree.focus(target)
-            self.tree.see(target)
-
-    def on_click(self, event):
-        if self.tree.identify_region(event.x, event.y) != "cell":
-            return
-        row = self.tree.identify_row(event.y)
-        if row and self.tree.identify_column(event.x) == "#1":
-            self.tree.selection_set(row)
-            self.toggle_selected()
-            return "break"
-
-    def on_double_click(self, event):
-        if self.tree.identify_region(event.x, event.y) == "cell" and self.tree.identify_column(event.x) != "#1":
-            self.open_selected()
-
-    def on_right_click(self, event):
-        row = self.tree.identify_row(event.y)
-        if row:
-            self.tree.selection_set(row)
-            self.menu.tk_popup(event.x_root, event.y_root)
 
     def open_settings(self, start=1):
         wizard = SetupWizard(self, self.cfg, start=start)
@@ -690,7 +926,7 @@ class App(tk.Tk):
             return
         self.syncing = True
         self.sync_btn.configure(state="disabled")
-        self.progress.pack(side="right")
+        self.progress.pack(side="right", padx=(0, 12))
         self.progress.start(12)
         cfg = dict(self.cfg)
 
