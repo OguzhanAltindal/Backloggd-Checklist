@@ -1,22 +1,80 @@
-"""Light and dark themes: colors, ttk styles and the Windows title bar."""
+"""Design tokens (colors, type, spacing, icons) and ttk styles for light and dark mode."""
 
 import sys
 from tkinter import font as tkfont
 from tkinter import ttk
 
+# One primary (brand pink), neutral grays, one accent (green: "added" / "unlocked").
+# Every color in the app comes from here.
 PALETTES = {
     "light": {
-        "bg": "#f3f4f6", "surface": "#ffffff", "surface2": "#e9ecf0", "border": "#d6dae0",
-        "text": "#1b1f24", "muted": "#5f6670", "accent": "#d93d63", "accent_hover": "#bf2f53",
-        "accent_text": "#ffffff", "ok": "#1d7a34", "error": "#b3261e", "warn": "#9a5b00",
-        "placeholder": "#d5d9df", "tip_bg": "#111418", "tip_text": "#ffffff", "link": "#1a62c4",
+        "bg": "#f6f6f8", "surface": "#ffffff", "raised": "#eef0f3",
+        "border": "#e1e4e9", "border_strong": "#c4c9d1",
+        "text": "#15171c", "muted": "#596170",
+        "primary": "#c42d55", "primary_hover": "#a92447", "on_primary": "#ffffff",
+        "primary_soft": "#fbe9ee", "primary_text": "#a3234a",
+        "accent": "#1c7a43", "accent_soft": "#e4f4ea",
+        "error": "#b42318", "error_soft": "#fdecea", "info_soft": "#eef1f6",
+        "placeholder": "#e3e6eb", "shadow": "#000000", "focus": "#c42d55",
     },
     "dark": {
-        "bg": "#14171c", "surface": "#1d2128", "surface2": "#272c35", "border": "#353c47",
-        "text": "#e8eaee", "muted": "#9aa3b2", "accent": "#ff6b8b", "accent_hover": "#ff8ca5",
-        "accent_text": "#1b0a10", "ok": "#62d083", "error": "#ff8a80", "warn": "#f3c56b",
-        "placeholder": "#2b313b", "tip_bg": "#000000", "tip_text": "#ffffff", "link": "#7ab4ff",
+        "bg": "#111317", "surface": "#181b21", "raised": "#21252d",
+        "border": "#2a2f38", "border_strong": "#3d4450",
+        "text": "#eceef2", "muted": "#a1a9b6",
+        "primary": "#ff7d9b", "primary_hover": "#ff98b0", "on_primary": "#2b0912",
+        "primary_soft": "#38202a", "primary_text": "#ff9fb6",
+        "accent": "#5ccf8b", "accent_soft": "#183326",
+        "error": "#ff8a80", "error_soft": "#3a1f1e", "info_soft": "#1d2129",
+        "placeholder": "#252a33", "shadow": "#000000", "focus": "#ff7d9b",
     },
+}
+
+# Primary color choices. Each keeps WCAG AA contrast in both modes: `on_primary` is the text
+# on a filled button, `primary_text` is primary-colored text, `focus` is the keyboard focus ring.
+ACCENT_NAMES = (("pink", "Pink"), ("green", "Green"), ("yellow", "Yellow"), ("blue", "Blue"),
+                ("red", "Red"), ("magenta", "Magenta"))
+ACCENTS = {
+    "light": {
+        "pink":    ("#c42d55", "#a92447", "#ffffff", "#fbe9ee", "#a3234a", "#c42d55"),
+        "green":   ("#1b7a47", "#15633a", "#ffffff", "#e3f3ea", "#15633a", "#1b7a47"),
+        "yellow":  ("#f0b400", "#d9a200", "#1f1700", "#fdf3d0", "#7a5600", "#7a5600"),
+        "blue":    ("#2462c8", "#1d4fa3", "#ffffff", "#e6eefb", "#1d4fa3", "#2462c8"),
+        "red":     ("#c42626", "#a51f1f", "#ffffff", "#fbe7e7", "#a51f1f", "#c42626"),
+        "magenta": ("#ad268d", "#911f76", "#ffffff", "#f8e6f3", "#911f76", "#ad268d"),
+    },
+    "dark": {
+        "pink":    ("#ff7d9b", "#ff98b0", "#2b0912", "#38202a", "#ff9fb6", "#ff7d9b"),
+        "green":   ("#5fd38f", "#7fe0a6", "#062012", "#173326", "#7fe0a6", "#5fd38f"),
+        "yellow":  ("#ffcc33", "#ffd966", "#241a00", "#3a3015", "#ffd966", "#ffcc33"),
+        "blue":    ("#6ea8ff", "#8fbcff", "#04152e", "#1c2840", "#8fbcff", "#6ea8ff"),
+        "red":     ("#ff7a7a", "#ff9999", "#2e0606", "#3b1e1e", "#ff9999", "#ff7a7a"),
+        "magenta": ("#f07ad6", "#f59ae1", "#2a0822", "#37202f", "#f59ae1", "#f07ad6"),
+    },
+}
+
+
+def palette(mode, accent="pink"):
+    """The full color set for 'light'/'dark' with the chosen primary color."""
+    p = dict(PALETTES[mode])
+    values = ACCENTS[mode].get(accent, ACCENTS[mode]["pink"])
+    p.update(zip(("primary", "primary_hover", "on_primary", "primary_soft", "primary_text", "focus"), values))
+    return p
+
+
+# Text size choices: from half size up to double size
+FONT_SCALES = (0.5, 0.75, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0)
+
+# Segoe Fluent Icons (Windows 11) / Segoe MDL2 Assets (Windows 10) share these code points
+ICONS = {
+    "back": "", "forward": "", "sync": "", "settings": "",
+    "help": "", "info": "", "grid": "", "list": "",
+    "search": "", "up": "", "down": "", "check": "",
+    "open": "", "sun": "", "moon": "", "auto": "",
+    "chev_down": "", "chev_right": "", "error": "", "warning": "",
+    "clock": "", "calendar": "", "store": "", "link": "",
+    "view": "", "hide": "", "clear": "", "filter": "",
+    "library": "", "copy": "", "key": "", "person": "",
+    "zoom_in": "", "zoom_out": "", "done": "", "star": "", "done_fill": "", "ring": "", "game": "",
 }
 
 
@@ -45,32 +103,62 @@ def set_titlebar(win, dark):
         return
     try:
         import ctypes
-        win.update_idletasks()
         hwnd = ctypes.windll.user32.GetParent(win.winfo_id())
         value = ctypes.c_int(1 if dark else 0)
         for attribute in (20, 19):  # DWMWA_USE_IMMERSIVE_DARK_MODE (new, then old Windows 10)
             if ctypes.windll.dwmapi.DwmSetWindowAttribute(
                     hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
                 break
-        # Repaint the frame now instead of on the next focus change
         flags = 0x0001 | 0x0002 | 0x0004 | 0x0020  # NOSIZE | NOMOVE | NOZORDER | FRAMECHANGED
         ctypes.windll.user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, flags)
     except Exception:
         pass
 
 
-def fonts(root):
-    base = tkfont.nametofont("TkDefaultFont")
-    size = base.cget("size")
-    family = base.cget("family")
-    return {
-        "base": base,
-        "bold": tkfont.Font(root, family=family, size=size, weight="bold"),
-        "small": tkfont.Font(root, family=family, size=max(abs(size) - 1, 7) * (1 if size > 0 else -1)),
-        "title": tkfont.Font(root, family=family, size=14 if size > 0 else -19, weight="bold"),
-        "heading": tkfont.Font(root, family=family, size=11 if size > 0 else -15, weight="bold"),
-        "mono": tkfont.Font(root, family="Consolas", size=11 if size > 0 else -15),
-    }
+def blend(c1, c2, t):
+    """Mix two #rrggbb colors; t=0 gives c1, t=1 gives c2 (used for transitions)."""
+    a = [int(c1[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(c2[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(a, b))
+
+
+def contrast(c1, c2):
+    """WCAG contrast ratio between two #rrggbb colors."""
+    def lum(c):
+        rgb = []
+        for i in (1, 3, 5):
+            v = int(c[i:i + 2], 16) / 255
+            rgb.append(v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4)
+        return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+    hi, lo = sorted((lum(c1), lum(c2)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+# Base sizes in points at 100%: 4 text sizes (title, heading, body, small) plus icons
+FONT_SIZES = {"title": 19, "heading": 13, "body": 10, "body_bold": 10, "small": 9, "small_bold": 9,
+              "icon": 11, "icon_big": 28, "mono": 11}
+
+
+def fonts(root, factor=1.0):
+    """Create the app's named fonts at `factor` times the base size."""
+    families = set(tkfont.families(root))
+    text = "Segoe UI Variable Text" if "Segoe UI Variable Text" in families else "Segoe UI"
+    display = "Segoe UI Variable Display" if "Segoe UI Variable Display" in families else text
+    icons = "Segoe Fluent Icons" if "Segoe Fluent Icons" in families else "Segoe MDL2 Assets"
+    family = {"title": display, "heading": display, "icon": icons, "icon_big": icons, "mono": "Consolas"}
+    f = {name: tkfont.Font(root, family=family.get(name, text),
+                           weight="bold" if name in ("title", "heading", "body_bold", "small_bold") else "normal")
+         for name in FONT_SIZES}
+    resize_fonts(root, f, factor)
+    return f
+
+
+def resize_fonts(root, f, factor):
+    """Change every font in place; widgets using them update by themselves."""
+    for name, size in FONT_SIZES.items():
+        f[name].configure(size=max(5, round(size * factor)))
+    for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont"):
+        tkfont.nametofont(name).configure(family=f["body"].cget("family"), size=max(5, round(10 * factor)))
 
 
 def apply(root, p, f):
@@ -79,66 +167,38 @@ def apply(root, p, f):
     s.theme_use("clam")
     s.configure(".", background=p["bg"], foreground=p["text"], fieldbackground=p["surface"],
                 bordercolor=p["border"], lightcolor=p["bg"], darkcolor=p["bg"],
-                troughcolor=p["surface2"], focuscolor=p["accent"], insertcolor=p["text"],
-                selectbackground=p["accent"], selectforeground=p["accent_text"], font=f["base"])
+                troughcolor=p["raised"], focuscolor=p["focus"], insertcolor=p["text"],
+                selectbackground=p["primary"], selectforeground=p["on_primary"], font=f["body"])
 
-    s.configure("TFrame", background=p["bg"])
-    s.configure("Card.TFrame", background=p["surface"])
-    s.configure("TLabel", background=p["bg"], foreground=p["text"])
-    s.configure("Muted.TLabel", foreground=p["muted"])
-    s.configure("Bold.TLabel", font=f["bold"])
-    s.configure("Title.TLabel", font=f["title"])
-    s.configure("Heading.TLabel", font=f["heading"])
-    s.configure("Ok.TLabel", foreground=p["ok"])
-    s.configure("Error.TLabel", foreground=p["error"])
-    s.configure("Link.TLabel", foreground=p["link"])
-    for name in ("Card", "CardMuted", "CardBold"):
-        s.configure(f"{name}.TLabel", background=p["surface"],
-                    foreground=p["muted"] if name == "CardMuted" else p["text"],
-                    font=f["bold"] if name == "CardBold" else f["base"])
-
-    s.configure("TButton", background=p["surface2"], foreground=p["text"], bordercolor=p["border"],
-                lightcolor=p["surface2"], darkcolor=p["surface2"], padding=(10, 4), focusthickness=0)
-    s.map("TButton",
-          background=[("disabled", p["bg"]), ("pressed", p["border"]), ("active", p["border"])],
-          foreground=[("disabled", p["muted"])],
-          lightcolor=[("active", p["border"])], darkcolor=[("active", p["border"])])
-    s.configure("Accent.TButton", background=p["accent"], foreground=p["accent_text"],
-                bordercolor=p["accent"], lightcolor=p["accent"], darkcolor=p["accent"])
-    s.map("Accent.TButton",
-          background=[("pressed", p["accent_hover"]), ("active", p["accent_hover"])],
-          lightcolor=[("active", p["accent_hover"])], darkcolor=[("active", p["accent_hover"])])
-    # Segmented buttons (view switch, sort): the selected one is highlighted
-    s.configure("Seg.TButton", padding=(9, 3))
-    s.configure("SegOn.TButton", padding=(9, 3), background=p["surface"], bordercolor=p["accent"],
-                foreground=p["accent"], lightcolor=p["surface"], darkcolor=p["surface"])
-    s.map("SegOn.TButton", background=[("active", p["surface"])])
+    for prefix, bg in (("", p["bg"]), ("Surface.", p["surface"])):
+        s.configure(f"{prefix}TFrame", background=bg)
+        s.configure(f"{prefix}TLabel", background=bg, foreground=p["text"], font=f["body"])
+        s.configure(f"{prefix}Muted.TLabel", background=bg, foreground=p["muted"], font=f["body"])
+        s.configure(f"{prefix}Small.TLabel", background=bg, foreground=p["muted"], font=f["small"])
+        s.configure(f"{prefix}Bold.TLabel", background=bg, foreground=p["text"], font=f["body_bold"])
+        s.configure(f"{prefix}Title.TLabel", background=bg, foreground=p["text"], font=f["title"])
+        s.configure(f"{prefix}Heading.TLabel", background=bg, foreground=p["text"], font=f["heading"])
+        s.configure(f"{prefix}Ok.TLabel", background=bg, foreground=p["accent"], font=f["body_bold"])
+        s.configure(f"{prefix}Error.TLabel", background=bg, foreground=p["error"], font=f["body"])
+        s.configure(f"{prefix}Icon.TLabel", background=bg, foreground=p["muted"], font=f["icon"])
 
     s.configure("TEntry", fieldbackground=p["surface"], foreground=p["text"],
-                bordercolor=p["border"], lightcolor=p["surface"], darkcolor=p["surface"], padding=4)
-    s.map("TEntry", bordercolor=[("focus", p["accent"])],
-          fieldbackground=[("readonly", p["surface2"])], lightcolor=[("focus", p["accent"])])
-    s.configure("TCheckbutton", background=p["bg"], foreground=p["text"],
-                indicatorbackground=p["surface"], indicatorforeground=p["accent"],
-                upperbordercolor=p["border"], lowerbordercolor=p["border"])
-    s.map("TCheckbutton", background=[("active", p["bg"])],
-          indicatorbackground=[("pressed", p["surface2"]), ("selected", p["surface"])])
-    s.configure("TMenubutton", background=p["surface2"], foreground=p["text"],
-                bordercolor=p["border"], arrowcolor=p["text"], padding=(10, 4),
-                lightcolor=p["surface2"], darkcolor=p["surface2"])
-    s.map("TMenubutton", background=[("active", p["border"])])
+                bordercolor=p["border_strong"], lightcolor=p["surface"], darkcolor=p["surface"],
+                padding=(8, 6))
+    s.map("TEntry", bordercolor=[("focus", p["focus"])], lightcolor=[("focus", p["focus"])],
+          darkcolor=[("focus", p["focus"])], fieldbackground=[("readonly", p["raised"])])
 
-    s.configure("Vertical.TScrollbar", background=p["surface2"], troughcolor=p["bg"],
-                bordercolor=p["bg"], arrowcolor=p["muted"], lightcolor=p["surface2"],
-                darkcolor=p["surface2"], gripcount=0)
-    s.map("Vertical.TScrollbar", background=[("active", p["border"])])
-    s.configure("Horizontal.TProgressbar", background=p["accent"], troughcolor=p["surface2"],
-                bordercolor=p["border"], lightcolor=p["accent"], darkcolor=p["accent"])
+    s.configure("Vertical.TScrollbar", background=p["raised"], troughcolor=p["bg"],
+                bordercolor=p["bg"], arrowcolor=p["muted"], lightcolor=p["raised"],
+                darkcolor=p["raised"], gripcount=0, arrowsize=12)
+    s.map("Vertical.TScrollbar", background=[("active", p["border_strong"])])
+    s.configure("Horizontal.TProgressbar", background=p["primary"], troughcolor=p["raised"],
+                bordercolor=p["raised"], lightcolor=p["primary"], darkcolor=p["primary"], thickness=6)
+    s.configure("Accent.Horizontal.TProgressbar", background=p["accent"], lightcolor=p["accent"],
+                darkcolor=p["accent"])
     s.configure("TSeparator", background=p["border"])
 
     root.option_add("*Menu.background", p["surface"])
     root.option_add("*Menu.foreground", p["text"])
-    root.option_add("*Menu.activeBackground", p["accent"])
-    root.option_add("*Menu.activeForeground", p["accent_text"])
-    root.option_add("*TCombobox*Listbox.background", p["surface"])
-    root.option_add("*TCombobox*Listbox.foreground", p["text"])
+    root.option_add("*Menu.activeBackground", p["primary"])
+    root.option_add("*Menu.activeForeground", p["on_primary"])
