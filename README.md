@@ -121,6 +121,10 @@ This installs PyInstaller and Pillow into a private `.build-venv` folder and wri
 **Publishing a version:** *Releases → Draft a new release*, create a tag such as `v1.2.0`, attach
 `dist\Backloggd-Checklist.exe` and publish. The download link above always points to the newest release.
 
+## License
+
+[MIT](LICENSE): free to use, change and share, as long as the copyright notice is kept.
+
 ## Disclaimer
 
 This is an independent fan project. It is not affiliated with or endorsed by Backloggd, Valve/Steam,
